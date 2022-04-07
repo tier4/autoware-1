@@ -46,10 +46,10 @@ repositories:
     url: https://github.com/tier4/topic_tools.git
     version: tier4/main
   # launcher
-  launcher/autoware_launch:
+  launcher:
     type: git
-    url: https://github.com/autowarefoundation/autoware_launch.git
-    version: main
+    url: https://github.com/tier4/autoware_launch.git
+    version: feature/e2e_simulator_universe
   # sensor_component
   sensor_component/sensor_component_description:
     type: git
