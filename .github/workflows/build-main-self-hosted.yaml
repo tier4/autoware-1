@@ -1,4 +1,4 @@
-name: build
+name: build-main-self-hosted
 
 on:
   schedule:
@@ -6,12 +6,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-main-self-hosted:
+    runs-on: [self-hosted, linux, ARM64]
     container: ubuntu:20.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
+        with:
+          ref: ""
 
       - name: Run setup script
         run: |
