@@ -20,6 +20,9 @@ while [ "$1" != "" ]; do
     --no-nvidia)
         option_no_nvidia=true
         ;;
+    --no-cuda-drivers)
+        option_no_cuda_drivers=true
+        ;;
     *)
         args+=("$1")
         ;;
@@ -28,15 +31,10 @@ while [ "$1" != "" ]; do
 done
 
 # Select installation type
-installation_type=universe # default
+target_playbook="autoware.dev_env.universe" # default
 
 if [ ${#args[@]} -ge 1 ]; then
-    installation_type=${args[0]}
-fi
-
-if [ "$installation_type" != "core" ] && [ "$installation_type" != "universe" ] && [ "$installation_type" != "docker" ]; then
-    echo -e "\e[31mPlease input a valid installation type 'core', 'universe' or 'docker' as the 1st argument, or keep it empty to use the default.\e[m"
-    exit 1
+    target_playbook="autoware.dev_env.${args[0]}"
 fi
 
 # Initialize ansible args
@@ -46,8 +44,8 @@ ansible_args=()
 if [ "$option_yes" = "true" ]; then
     echo -e "\e[36mRun the setup in non-interactive mode.\e[m"
 else
-    echo -e "\e[33mSetting up the build environment take up to 1 hour.\e[m"
-    read -rp ">  Are you sure to run the setup? [y/N] " answer
+    echo -e "\e[33mSetting up the build environment can take up to 1 hour.\e[m"
+    read -rp ">  Are you sure you want to run setup? [y/N] " answer
 
     # Check whether to cancel
     if ! [[ ${answer:0:1} =~ y|Y ]]; then
@@ -60,20 +58,43 @@ fi
 
 # Check verbose option
 if [ "$option_verbose" = "true" ]; then
-    ansible_args+=("-v")
+    ansible_args+=("-vvv")
 fi
 
-# Check NVIDIA Installation
+# Check installation of NVIDIA libraries
 if [ "$option_no_nvidia" = "true" ]; then
     ansible_args+=("--extra-vars" "install_nvidia=n")
 elif [ "$option_yes" = "true" ]; then
     ansible_args+=("--extra-vars" "install_nvidia=y")
 fi
 
+# Check installation of CUDA Drivers
+if [ "$option_no_cuda_drivers" = "true" ]; then
+    ansible_args+=("--extra-vars" "install_cuda_drivers=false")
+fi
+
+# Load env
+source "$SCRIPT_DIR/amd64.env"
+if [ "$(uname -m)" = "aarch64" ]; then
+    source "$SCRIPT_DIR/arm64.env"
+fi
+
+# Add env args
+# shellcheck disable=SC2013
+for env_name in $(sed -e "s/^\s*//" -e "/^#/d" -e "s/=.*//" <amd64.env); do
+    ansible_args+=("--extra-vars" "${env_name}=${!env_name}")
+done
+
 # Install sudo
 if ! (command -v sudo >/dev/null 2>&1); then
     apt-get -y update
     apt-get -y install sudo
+fi
+
+# Install git
+if ! (command -v git >/dev/null 2>&1); then
+    sudo apt-get -y update
+    sudo apt-get -y install git
 fi
 
 # Install pip for ansible
@@ -86,15 +107,18 @@ fi
 ansible_version=$(pip3 list | grep -oP "^ansible\s+\K([0-9]+)" || true)
 if [ "$ansible_version" != "5" ]; then
     sudo apt-get -y purge ansible
-    sudo pip3 install -U "ansible==5.*"
+    pip3 install -U "ansible==5.*"
 fi
+
+# For Python packages installed with user privileges
+export PATH="$HOME/.local/bin:$PATH"
 
 # Install ansible collections
 ansible-galaxy collection install -f -r "$SCRIPT_DIR/ansible-galaxy-requirements.yaml"
 
 # Run ansible
-echo Run ansible-playbook "autoware.dev_env.$installation_type" "${ansible_args[@]}"
-if ansible-playbook "autoware.dev_env.$installation_type" "${ansible_args[@]}"; then
+echo -e "\e[36m Run ansible-playbook" "$target_playbook" "${ansible_args[@]}" "\e[m"
+if ansible-playbook "$target_playbook" "${ansible_args[@]}"; then
     echo -e "\e[32mCompleted.\e[0m"
     exit 0
 else

@@ -2,50 +2,45 @@ name: update-docker-manifest
 
 on:
   schedule:
-    - cron: 0 0 * * 0
+    - cron: 0 0 * * *
   workflow_dispatch:
 
 jobs:
   update-docker-manifest:
     runs-on: ubuntu-latest
-    env:
-      PACKAGE_NAME: autoware-universe
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Combine multi arch images for 'autoware-universe'
+        uses: ./.github/actions/combine-multi-arch-images
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ github.token }}
+          package-name: autoware-universe
 
-      - name: Create Docker manifest
-        run: |
-          package_full_name=ghcr.io/${{ github.repository_owner }}/${{ env.PACKAGE_NAME }}
+      - name: Create alias from 'autoware-universe:{rosdistro}-latest' to 'autoware-universe:latest'
+        uses: ./.github/actions/create-main-distro-alias
+        with:
+          package-name: autoware-universe
+          rosdistro: galactic
+          tag-name: latest
 
-          url="https://api.github.com/orgs/${{ github.repository_owner }}/packages/container/${{ env.PACKAGE_NAME }}/versions"
+      - name: Create alias from 'autoware-universe:{rosdistro}-latest-prebuilt' to 'autoware-universe:latest-prebuilt'
+        uses: ./.github/actions/create-main-distro-alias
+        with:
+          package-name: autoware-universe
+          rosdistro: galactic
+          tag-name: latest-prebuilt
 
-          echo "url: $url"
-          tags=$(curl -fsSL "$url" -H "Authorization: token ${{ github.token }}" | jq ".[].metadata.container.tags[]" | cut -d '"' -f 2)
+      - name: Create alias from 'autoware-universe:{rosdistro}-latest-cuda' to 'autoware-universe:latest-cuda'
+        uses: ./.github/actions/create-main-distro-alias
+        with:
+          package-name: autoware-universe
+          rosdistro: galactic
+          tag-name: latest-cuda
 
-          amd64_tags=$(echo "$tags" | grep "\-amd64" | sed "s/-amd64$//g")
-          arm64_tags=$(echo "$tags" | grep "\-arm64" | sed "s/-arm64$//g")
-          base_tags=$(printf "%s\n" "$amd64_tags" "$arm64_tags" | sort | uniq)
-
-          echo "amd64_tags: "$amd64_tags""
-          echo "arm64_tags: "$arm64_tags""
-          echo "base_tags: "$base_tags""
-
-          for base_tag in $base_tags; do
-            amd64_tag="$package_full_name":$(echo "$tags" | grep "$base_tag\-amd64")
-            arm64_tag="$package_full_name":$(echo "$tags" | grep "$base_tag\-arm64")
-
-            echo "base_tag: $base_tag"
-            echo "amd64_tag: $amd64_tag"
-            echo "arm64_tag: $arm64_tag"
-
-            docker manifest create $package_full_name:$base_tag \
-              $amd64_tag \
-              $arm64_tag
-
-            docker manifest push $package_full_name:$base_tag
-          done
+      - name: Create alias from 'autoware-universe:{rosdistro}-latest-prebuilt-cuda' to 'autoware-universe:latest-prebuilt-cuda'
+        uses: ./.github/actions/create-main-distro-alias
+        with:
+          package-name: autoware-universe
+          rosdistro: galactic
+          tag-name: latest-prebuilt-cuda

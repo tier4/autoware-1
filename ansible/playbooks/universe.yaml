@@ -1,28 +1,31 @@
 - hosts: localhost
   connection: local
-  vars:
-    - rosdistro: galactic
-    - rmw_implementation: rmw_cyclonedds_cpp
-    - cuda_version: 11-4
-    - cudnn_version: 8.2.4.15-1+cuda11.4
-    - tensorrt_version: 8.2.4-1+cuda11.4
   vars_prompt:
     - name: install_nvidia
       prompt: |-
-        [Warning] Some components depend on NVIDIA libraries (CUDA, cuDNN, TensorRT), which require license agreements.
-        Did you confirm the licenses and are you sure to to install them? [y/N]
+        [Warning] Some Autoware components depend on the CUDA, cuDNN and TensorRT NVIDIA libraries which have end-user license agreements that should be reviewed before installation.
+        Install NVIDIA libraries? [y/N]
       private: false
   pre_tasks:
-    - name: Show warnings that NVIDIA libraries will not be installed
+    - name: Print args
+      ansible.builtin.debug:
+        msg:
+          - rosdistro: "{{ rosdistro }}"
+          - rmw_implementation: "{{ rmw_implementation }}"
+          - cuda_version: "{{ cuda_version }}"
+          - cudnn_version: "{{ cudnn_version }}"
+          - tensorrt_version: "{{ tensorrt_version }}"
+    - name: Show a warning if the NVIDIA libraries will not be installed
       ansible.builtin.pause:
         seconds: 10
         prompt: |
-          [Warning] Skipping installation of NVIDIA libraries. Please manually install them if you use the depending components.
+          [Warning] Skipping installation of NVIDIA libraries. Please manually install them if you plan to use any dependent components.
       when: install_nvidia != 'y'
   roles:
     # Core
     - role: autoware.dev_env.autoware_core
-    - role: autoware.dev_env.docker
+    - role: autoware.dev_env.ccache
+    - role: autoware.dev_env.plotjuggler
     - role: autoware.dev_env.pre_commit
     - role: autoware.dev_env.ros2
     - role: autoware.dev_env.ros2_dev_tools
@@ -33,5 +36,6 @@
     - role: autoware.dev_env.cuda
       when: install_nvidia == 'y'
     - role: autoware.dev_env.pacmod
+      when: rosdistro != 'rolling'
     - role: autoware.dev_env.tensorrt
       when: install_nvidia == 'y'
