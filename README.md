@@ -1,5 +1,10 @@
 # Autoware - the world's leading open-source software project for autonomous driving
 
+## Announcement
+
+This repository will be archived soon as [forking repository](https://github.com/autowarefoundation/autoware_core_universe_prototype) will be archived.
+Please use [tier4/autoware](https://github.com/tier4/autoware) instead.
+
 ![Autoware_RViz](https://user-images.githubusercontent.com/63835446/158918717-58d6deaf-93fb-47f9-891d-e242b02cba7b.png)
 [![Discord](https://img.shields.io/discord/953808765935816715?label=Autoware%20Discord&style=for-the-badge)](https://discord.gg/Q94UsPvReQ)
 
